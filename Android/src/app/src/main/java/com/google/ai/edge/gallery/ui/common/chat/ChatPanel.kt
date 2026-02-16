@@ -630,6 +630,7 @@ fun ChatPanel(
           (selectedModel.llmSupportAudio && task.id == BuiltInTaskId.LLM_ASK_AUDIO) ||
             ((selectedModel.llmSupportAudio || selectedModel.llmSupportDeepAnalysis) &&
               task.id == BuiltInTaskId.LLM_DEEP_ANALYSIS),
+        showDocumentPickerInMenu = task.id == BuiltInTaskId.LLM_DEEP_ANALYSIS,
         showStopButtonWhenInProgress = showStopButtonInInputWhenInProgress,
       )
     }

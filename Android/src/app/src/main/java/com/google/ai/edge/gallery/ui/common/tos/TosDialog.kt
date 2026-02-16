@@ -72,11 +72,8 @@ fun TosDialog(onTosAccepted: () -> Unit, viewingMode: Boolean = false) {
         Column(modifier = Modifier.verticalScroll(rememberScrollState()).weight(1f, fill = false)) {
           // Short content.
           MarkdownText(
-            "By using this app, you agree to the " +
-              "[Google Terms of Service](https://policies.google.com/terms?hl=en-US).\n\n" +
-              "To learn what information we collect and why, how we use it, " +
-              "and how to review and update it, please review the " +
-              "[Google Privacy Policy](https://policies.google.com/privacy?hl=en-US).",
+            "Learn anything without internet and stay safe and secure.\n\n" +
+              "**Lecture Ai** runs entirely on your device. Your data remains private and never leaves your phone.",
             smallFontSize = true,
             textColor = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 16.dp),

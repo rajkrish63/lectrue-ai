@@ -77,6 +77,7 @@ import androidx.compose.material.icons.rounded.Photo
 import androidx.compose.material.icons.rounded.PhotoCamera
 import androidx.compose.material.icons.rounded.PostAdd
 import androidx.compose.material.icons.rounded.Stop
+import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -165,6 +166,7 @@ fun MessageInputText(
   showPromptTemplatesInMenu: Boolean = false,
   showImagePickerInMenu: Boolean = false,
   showAudioItemsInMenu: Boolean = false,
+  showDocumentPickerInMenu: Boolean = false,
   showStopButtonWhenInProgress: Boolean = false,
 ) {
   val context = LocalContext.current
@@ -268,6 +270,35 @@ fun MessageInputText(
         }
       } else {
         Log.d(TAG, "Wav picking cancelled.")
+      }
+    }
+
+  val pickDocument =
+    rememberLauncherForActivityResult(
+      contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+      if (result.resultCode == android.app.Activity.RESULT_OK) {
+        result.data?.data?.let { uri ->
+          Log.d(TAG, "Picked document: $uri")
+          val mimeType = context.contentResolver.getType(uri)
+          Log.d(TAG, "Document MIME type: $mimeType")
+
+          if (mimeType == "application/pdf") {
+            scope.launch(Dispatchers.IO) {
+              val bitmaps = com.google.ai.edge.gallery.common.convertPdfToBitmaps(context, uri)
+              scope.launch(Dispatchers.Main) { updatePickedImages(bitmaps) }
+            }
+          } else if (mimeType?.contains("word") == true || mimeType?.contains("document") == true || mimeType?.contains("officedocument") == true) {
+             scope.launch(Dispatchers.IO) {
+               val text = com.google.ai.edge.gallery.common.extractTextFromDocx(context, uri)
+               scope.launch(Dispatchers.Main) {
+                 onValueChanged(curMessage + "\n\n[Document Content]:\n" + text)
+               }
+             }
+          }
+        }
+      } else {
+        Log.d(TAG, "Document picking cancelled.")
       }
     }
 
@@ -483,6 +514,44 @@ fun MessageInputText(
                               .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                           }
                         pickWav.launch(intent)
+                      },
+                    )
+                  }
+
+                  // Document related menu items.
+                  if (showDocumentPickerInMenu) {
+                    DropdownMenuItem(
+                      text = {
+                        Row(
+                          verticalAlignment = Alignment.CenterVertically,
+                          horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                          Icon(androidx.compose.material.icons.Icons.Rounded.Description, contentDescription = null)
+                          Text("Pick Document")
+                        }
+                      },
+                      enabled = enableAddImageMenuItems,
+                      onClick = {
+                        showAddContentMenu = false
+
+                        // Show file picker.
+                        val intent =
+                          Intent(Intent.ACTION_GET_CONTENT).apply {
+                            addCategory(Intent.CATEGORY_OPENABLE)
+                            type = "*/*"
+                            val mimeTypes = arrayOf(
+                              "application/pdf",
+                              "application/msword",
+                              "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                            )
+                            putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes)
+                            
+                            // Single select.
+                            putExtra(Intent.EXTRA_ALLOW_MULTIPLE, false)
+                              .addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+                              .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                          }
+                        pickDocument.launch(intent)
                       },
                     )
                   }

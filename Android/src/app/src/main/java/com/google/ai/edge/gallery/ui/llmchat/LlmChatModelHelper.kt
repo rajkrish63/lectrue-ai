@@ -87,28 +87,71 @@ object LlmChatModelHelper {
     Log.d(TAG, "Preferred backend: $preferredBackend")
 
     val modelPath = model.getPath(context = context)
-    val engineConfig =
-      EngineConfig(
-        modelPath = modelPath,
-        backend = preferredBackend,
-        visionBackend = if (shouldEnableImage) Backend.GPU else null, // must be GPU for Gemma 3n
-        audioBackend = if (shouldEnableAudio) Backend.CPU else null, // must be CPU for Gemma 3n
-        maxNumTokens = maxTokens,
-        cacheDir =
-          if (modelPath.startsWith("/data/local/tmp"))
-            context.getExternalFilesDir(null)?.absolutePath
-          else null,
-      )
-
     // Create an instance of LiteRT LM engine and conversation.
+    var engine: Engine? = null
+    
+    // Helper to create config
+    fun createConfig(enableImage: Boolean, enableAudio: Boolean): EngineConfig {
+       return EngineConfig(
+         modelPath = modelPath,
+         backend = preferredBackend,
+         visionBackend = if (enableImage) Backend.GPU else null,
+         audioBackend = if (enableAudio) Backend.CPU else null,
+         maxNumTokens = maxTokens,
+         cacheDir =
+           if (modelPath.startsWith("/data/local/tmp"))
+             context.getExternalFilesDir(null)?.absolutePath
+           else null,
+       )
+    }
+
     try {
-      val engine = Engine(engineConfig)
-      engine.initialize()
+      try {
+         // Attempt 1: As requested
+         engine = Engine(createConfig(shouldEnableImage, shouldEnableAudio))
+         engine.initialize()
+      } catch (e: Exception) {
+         val msg = e.message ?: ""
+         var newEnableImage = shouldEnableImage
+         var newEnableAudio = shouldEnableAudio
+         var shouldRetry = false
+
+         if (msg.contains("TF_LITE_VISION_ENCODER")) {
+             Log.w(TAG, "Model missing vision encoder. Disabling vision.")
+             newEnableImage = false
+             shouldRetry = true
+         }
+         if (msg.contains("TF_LITE_AUDIO_ENCODER")) {
+             Log.w(TAG, "Model missing audio encoder. Disabling audio.")
+             newEnableAudio = false
+             shouldRetry = true
+         }
+         
+         if (shouldRetry) {
+             try {
+                // Attempt 2: Partial fallback
+                engine = Engine(createConfig(newEnableImage, newEnableAudio))
+                engine.initialize()
+             } catch (e2: Exception) {
+                 // Attempt 3: Text Only fallback if we hit an error again (e.g. we fixed Vision but then hit Audio, or vice versa)
+                 val msg2 = e2.message ?: ""
+                 if (msg2.contains("TF_LITE_VISION_ENCODER") || msg2.contains("TF_LITE_AUDIO_ENCODER")) {
+                     Log.w(TAG, "Fallback to text-only backend.")
+                     engine = Engine(createConfig(enableImage = false, enableAudio = false))
+                     engine.initialize()
+                 } else {
+                     throw e2
+                 }
+             }
+         } else {
+             throw e
+         }
+      }
 
       ExperimentalFlags.enableConversationConstrainedDecoding =
         enableConversationConstrainedDecoding
       val conversation =
-        engine.createConversation(
+        engine!!.createConversation(
           ConversationConfig(
             samplerConfig =
               SamplerConfig(

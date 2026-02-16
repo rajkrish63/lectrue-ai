@@ -544,7 +544,7 @@ constructor(
         (task.id == BuiltInTaskId.LLM_ASK_IMAGE && model.llmSupportImage) ||
           (task.id == BuiltInTaskId.LLM_ASK_AUDIO && model.llmSupportAudio) ||
           (task.id == BuiltInTaskId.LLM_TINY_GARDEN && model.llmSupportTinyGarden) ||
-          (task.id == BuiltInTaskId.LLM_DEEP_ANALYSIS && model.llmSupportDeepAnalysis) ||
+          (task.id == BuiltInTaskId.LLM_DEEP_ANALYSIS) ||
           (task.id != BuiltInTaskId.LLM_ASK_IMAGE &&
             task.id != BuiltInTaskId.LLM_ASK_AUDIO &&
             task.id != BuiltInTaskId.LLM_TINY_GARDEN &&
@@ -837,6 +837,12 @@ constructor(
               newConfigs.add(RESET_CONVERSATION_TURN_COUNT_CONFIG)
               model.configs = newConfigs
             }
+          }
+
+          // Force add all LLM models to Deep Analysis task
+          if (allowedModel.taskTypes.contains(BuiltInTaskId.LLM_CHAT) && 
+              !allowedModel.taskTypes.contains(BuiltInTaskId.LLM_DEEP_ANALYSIS)) {
+             curTasks.find { it.id == BuiltInTaskId.LLM_DEEP_ANALYSIS }?.models?.add(model)
           }
         }
 

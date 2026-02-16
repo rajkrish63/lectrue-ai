@@ -315,3 +315,66 @@ fun readFileToByteBuffer(file: File): ByteBuffer? {
     null
   }
 }
+
+fun convertPdfToBitmaps(context: Context, uri: Uri, maxPages: Int = 5): List<Bitmap> {
+  val bitmaps = mutableListOf<Bitmap>()
+  try {
+    context.contentResolver.openFileDescriptor(uri, "r")?.use { fileDescriptor ->
+      val pdfRenderer = android.graphics.pdf.PdfRenderer(fileDescriptor)
+      val pageCount = minOf(pdfRenderer.pageCount, maxPages)
+
+      for (i in 0 until pageCount) {
+        pdfRenderer.openPage(i).use { page ->
+          // Render with higher quality (2x scale) for better text readability
+          val width = page.width * 2
+          val height = page.height * 2
+          val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+          
+          // White background
+          val canvas = android.graphics.Canvas(bitmap)
+          canvas.drawColor(android.graphics.Color.WHITE)
+          
+          page.render(bitmap, null, null, android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+          bitmaps.add(bitmap)
+        }
+      }
+      pdfRenderer.close()
+    }
+  } catch (e: Exception) {
+    Log.e(TAG, "Failed to render PDF", e)
+  }
+  return bitmaps
+}
+
+fun extractTextFromDocx(context: Context, uri: Uri): String {
+  val sb = StringBuilder()
+  try {
+    context.contentResolver.openInputStream(uri)?.use { inputStream ->
+      java.util.zip.ZipInputStream(inputStream).use { zipInputStream ->
+        var entry = zipInputStream.nextEntry
+        while (entry != null) {
+          if (entry.name == "word/document.xml") {
+            val buffer = ByteArray(4096)
+            val outputStream = java.io.ByteArrayOutputStream()
+            var len: Int
+            while (zipInputStream.read(buffer).also { len = it } > 0) {
+              outputStream.write(buffer, 0, len)
+            }
+            val xmlContent = outputStream.toString("UTF-8")
+            
+            // simple regex to strip tags and get text
+            // Not perfect but works for standard docx content extraction without heavy libs
+            val plainText = xmlContent.replace(Regex("<[^>]*>"), "")
+            sb.append(plainText)
+            break
+          }
+          entry = zipInputStream.nextEntry
+        }
+      }
+    }
+  } catch (e: Exception) {
+    Log.e(TAG, "Failed to extract text from DOCX", e)
+    return "Error interpreting document."
+  }
+  return sb.toString()
+}
