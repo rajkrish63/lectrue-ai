@@ -215,9 +215,13 @@ data class Model(
 
   /** Whether the LLM model supports mobile actions. */
   val llmSupportMobileActions: Boolean = false,
+  val llmSupportDeepAnalysis: Boolean = false,
 
   /** Whether the model is imported or not. */
   val imported: Boolean = false,
+
+  /** Whether the model is recommended. */
+  val isRecommended: Boolean = false,
 
   // The following fields are managed by the app. Don't need to set manually.
   //

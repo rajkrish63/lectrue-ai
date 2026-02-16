@@ -56,6 +56,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.collectAsState
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -93,18 +95,14 @@ fun SettingsDialog(
   modelManagerViewModel: ModelManagerViewModel,
   onDismissed: () -> Unit,
 ) {
+    val uiState by modelManagerViewModel.uiState.collectAsState()
   var selectedTheme by remember { mutableStateOf(curThemeOverride) }
-  var hfToken by remember { mutableStateOf(modelManagerViewModel.getTokenStatusAndData().data) }
-  val dateFormatter = remember {
-    DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-      .withZone(ZoneId.systemDefault())
-      .withLocale(Locale.getDefault())
-  }
-  var customHfToken by remember { mutableStateOf("") }
-  var isFocused by remember { mutableStateOf(false) }
-  val focusRequester = remember { FocusRequester() }
   val interactionSource = remember { MutableInteractionSource() }
-  var showTos by remember { mutableStateOf(false) }
+
+  val importedModels =
+    remember(uiState.tasks) {
+      uiState.tasks.flatMap { it.models }.filter { it.imported }.distinctBy { it.name }
+    }
 
   Dialog(onDismissRequest = onDismissed) {
     val focusManager = LocalFocusManager.current
@@ -186,135 +184,50 @@ fun SettingsDialog(
             }
           }
 
-          // HF Token management.
+          // Imported Models List
           Column(
             modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) {},
             verticalArrangement = Arrangement.spacedBy(4.dp),
           ) {
             Text(
-              "HuggingFace access token",
+              "Imported Models",
               style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium),
             )
-            // Show the start of the token.
-            val curHfToken = hfToken
-            if (curHfToken != null && curHfToken.accessToken.isNotEmpty()) {
+            if (importedModels.isEmpty()) {
               Text(
-                curHfToken.accessToken.substring(0, min(16, curHfToken.accessToken.length)) + "...",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-              )
-              Text(
-                "Expires at: ${dateFormatter.format(Instant.ofEpochMilli(curHfToken.expiresAtMs))}",
+                "No imported models",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
               )
             } else {
-              Text(
-                "Not available",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-              )
-              Text(
-                "The token will be automatically retrieved when a gated model is downloaded",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-              )
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-              OutlinedButton(
-                onClick = {
-                  modelManagerViewModel.clearAccessToken()
-                  hfToken = null
-                },
-                enabled = curHfToken != null,
-              ) {
-                Text("Clear")
-              }
-              val handleSaveToken = {
-                modelManagerViewModel.saveAccessToken(
-                  accessToken = customHfToken,
-                  refreshToken = "",
-                  expiresAt = System.currentTimeMillis() + 1000L * 60 * 60 * 24 * 365 * 10,
-                )
-                hfToken = modelManagerViewModel.getTokenStatusAndData().data
-                focusManager.clearFocus()
-              }
-              BasicTextField(
-                value = customHfToken,
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { handleSaveToken() }),
-                modifier =
-                  Modifier.fillMaxWidth()
-                    .padding(top = 4.dp)
-                    .focusRequester(focusRequester)
-                    .onFocusChanged { isFocused = it.isFocused },
-                onValueChange = { customHfToken = it },
-                textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface),
-                cursorBrush = SolidColor(MaterialTheme.colorScheme.onSurface),
-              ) { innerTextField ->
-                Box(
-                  modifier =
-                    Modifier.border(
-                        width = if (isFocused) 2.dp else 1.dp,
-                        color =
-                          if (isFocused) MaterialTheme.colorScheme.primary
-                          else MaterialTheme.colorScheme.outline,
-                        shape = CircleShape,
-                      )
-                      .height(40.dp),
-                  contentAlignment = Alignment.CenterStart,
+              importedModels.forEach { model ->
+                Row(
+                  modifier = Modifier.fillMaxWidth(),
+                  verticalAlignment = Alignment.CenterVertically,
+                  horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                  Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.padding(start = 16.dp).weight(1f)) {
-                      if (customHfToken.isEmpty()) {
-                        Text(
-                          "Enter token manually",
-                          color = MaterialTheme.colorScheme.onSurfaceVariant,
-                          style = MaterialTheme.typography.bodySmall,
-                        )
-                      }
-                      innerTextField()
-                    }
-                    if (customHfToken.isNotEmpty()) {
-                      IconButton(modifier = Modifier.offset(x = 1.dp), onClick = handleSaveToken) {
-                        Icon(
-                          Icons.Rounded.CheckCircle,
-                          contentDescription = stringResource(R.string.cd_done_icon),
-                        )
+                  Text(
+                    model.name,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f),
+                  )
+                  IconButton(
+                    onClick = {
+                      val task = uiState.tasks.find { it.models.contains(model) }
+                      if (task != null) {
+                        modelManagerViewModel.deleteModel(task, model)
                       }
                     }
+                  ) {
+                    Icon(
+                      Icons.Rounded.Delete,
+                      contentDescription = "Delete ${model.name}",
+                      tint = MaterialTheme.colorScheme.error,
+                    )
                   }
                 }
               }
             }
-          }
-
-          // Third party licenses.
-          Column(modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) {}) {
-            Text(
-              "Third-party libraries",
-              style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium),
-            )
-            OutlinedButton(
-              onClick = {
-                // Create an Intent to launch a license viewer that displays a list of
-                // third-party library names. Clicking a name will show its license content.
-                val intent = Intent(context, OssLicensesMenuActivity::class.java)
-                context.startActivity(intent)
-              }
-            ) {
-              Text("View licenses")
-            }
-          }
-
-          // Tos
-          Column(modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) {}) {
-            Text(
-              stringResource(R.string.settings_dialog_tos_title),
-              style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium),
-            )
-            OutlinedButton(onClick = { showTos = true }) { Text("View Terms of Services") }
           }
         }
 
@@ -329,11 +242,8 @@ fun SettingsDialog(
       }
     }
   }
-
-  if (showTos) {
-    TosDialog(onTosAccepted = { showTos = false }, viewingMode = true)
-  }
 }
+
 
 private fun themeLabel(theme: Theme): String {
   return when (theme) {

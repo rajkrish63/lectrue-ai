@@ -127,6 +127,7 @@ object BuiltInTaskId {
   const val LLM_ASK_AUDIO = "llm_ask_audio"
   const val LLM_MOBILE_ACTIONS = "llm_mobile_actions"
   const val LLM_TINY_GARDEN = "llm_tiny_garden"
+  const val LLM_DEEP_ANALYSIS = "llm_deep_analysis"
   const val MP_SCRAPBOOK = "mp_scrapbook"
 }
 
@@ -136,6 +137,7 @@ private val allLegacyTaskIds: Set<String> =
     BuiltInTaskId.LLM_PROMPT_LAB,
     BuiltInTaskId.LLM_ASK_IMAGE,
     BuiltInTaskId.LLM_ASK_AUDIO,
+    BuiltInTaskId.LLM_DEEP_ANALYSIS,
   )
 
 fun isLegacyTasks(id: String): Boolean {

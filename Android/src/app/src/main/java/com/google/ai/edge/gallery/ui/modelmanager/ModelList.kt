@@ -91,17 +91,30 @@ fun ModelList(
 ) {
   // This is just to update "models" list when task.updateTrigger is updated so that the UI can
   // be properly updated.
-  val models by
+  val recommendedModels by
     remember(task) {
       derivedStateOf {
         val trigger = task.updateTrigger.value
         if (trigger >= 0) {
-          task.models.toList().filter { !it.imported }
+          task.models.toList().filter { it.isRecommended && !it.imported }
         } else {
           listOf()
         }
       }
     }
+
+  val otherModels by
+    remember(task) {
+      derivedStateOf {
+        val trigger = task.updateTrigger.value
+        if (trigger >= 0) {
+          task.models.toList().filter { !it.isRecommended && !it.imported }
+        } else {
+          listOf()
+        }
+      }
+    }
+
   val importedModels by
     remember(task) {
       derivedStateOf {
@@ -265,8 +278,9 @@ fun ModelList(
           Text(
             resources.getQuantityString(
               R.plurals.model_list_number_of_models_available,
-              models.size + importedModels.size,
-              models.size + importedModels.size,
+              R.plurals.model_list_number_of_models_available,
+              recommendedModels.size + otherModels.size + importedModels.size,
+              recommendedModels.size + otherModels.size + importedModels.size,
             ),
             color = MaterialTheme.colorScheme.onSurface,
             style = MaterialTheme.typography.bodyMedium,
@@ -280,7 +294,7 @@ fun ModelList(
       }
 
       // Title for recommended models.
-      if (!models.isEmpty())
+      if (recommendedModels.isNotEmpty()) {
         item(key = "recommendedModelsTitle") {
           Text(
             stringResource(R.string.model_list_recommended_models_title),
@@ -293,20 +307,19 @@ fun ModelList(
               },
           )
         }
-
-      // List of models within a task.
-      items(items = models) { model ->
-        ModelItem(
-          model = model,
-          task = task,
-          modelManagerViewModel = modelManagerViewModel,
-          onModelClicked = onModelClicked,
-          modifier =
-            Modifier.graphicsLayer {
-              alpha = modelListProgress
-              translationY = (CONTENT_ANIMATION_OFFSET * (1 - modelListProgress)).toPx()
-            },
-        )
+        items(items = recommendedModels, key = { it.name }) { model ->
+          ModelItem(
+            model = model,
+            task = task,
+            modelManagerViewModel = modelManagerViewModel,
+            onModelClicked = onModelClicked,
+            modifier =
+              Modifier.graphicsLayer {
+                alpha = modelListProgress
+                translationY = (CONTENT_ANIMATION_OFFSET * (1 - modelListProgress)).toPx()
+              },
+          )
+        }
       }
 
       // Title for imported models.
@@ -325,11 +338,38 @@ fun ModelList(
                 },
           )
         }
+        items(items = importedModels, key = { it.name }) { model ->
+          ModelItem(
+            model = model,
+            task = task,
+            modelManagerViewModel = modelManagerViewModel,
+            onModelClicked = onModelClicked,
+            modifier =
+              Modifier.graphicsLayer {
+                alpha = modelListProgress
+                translationY = (CONTENT_ANIMATION_OFFSET * (1 - modelListProgress)).toPx()
+              },
+          )
+        }
       }
 
-      // List of imported models within a task.
-      items(items = importedModels, key = { it.name }) { model ->
-        Box {
+      // Title for other models.
+      if (otherModels.isNotEmpty()) {
+        item(key = "otherModelsTitle") {
+          Text(
+            "Other Models", // You might want to add a resource string for this
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.labelLarge,
+            modifier =
+              Modifier.padding(horizontal = 16.dp)
+                .padding(top = 32.dp, bottom = 8.dp)
+                .graphicsLayer {
+                  alpha = modelListProgress
+                  translationY = (CONTENT_ANIMATION_OFFSET * (1 - modelListProgress)).toPx()
+                },
+          )
+        }
+        items(items = otherModels, key = { it.name }) { model ->
           ModelItem(
             model = model,
             task = task,

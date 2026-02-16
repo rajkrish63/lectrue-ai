@@ -80,6 +80,22 @@ fun LlmAskAudioScreen(
 }
 
 @Composable
+fun LlmDeepAnalysisScreen(
+  modelManagerViewModel: ModelManagerViewModel,
+  navigateUp: () -> Unit,
+  modifier: Modifier = Modifier,
+  viewModel: LlmChatViewModel = hiltViewModel(),
+) {
+  ChatViewWrapper(
+    viewModel = viewModel,
+    modelManagerViewModel = modelManagerViewModel,
+    taskId = BuiltInTaskId.LLM_DEEP_ANALYSIS,
+    navigateUp = navigateUp,
+    modifier = modifier,
+  )
+}
+
+@Composable
 fun ChatViewWrapper(
   viewModel: LlmChatViewModelBase,
   modelManagerViewModel: ModelManagerViewModel,

@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-package com.google.ai.edge.gallery.ui.llmsingleturn
+package com.google.ai.edge.gallery.ui.llmchat
 
 import android.content.Context
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Widgets
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.runtime.Composable
 import com.google.ai.edge.gallery.R
 import com.google.ai.edge.gallery.customtasks.common.CustomTask
@@ -27,7 +27,6 @@ import com.google.ai.edge.gallery.data.BuiltInTaskId
 import com.google.ai.edge.gallery.data.Category
 import com.google.ai.edge.gallery.data.Model
 import com.google.ai.edge.gallery.data.Task
-import com.google.ai.edge.gallery.ui.llmchat.LlmChatModelHelper
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -36,18 +35,21 @@ import dagger.multibindings.IntoSet
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 
-class LlmSingleTurnTask @Inject constructor() : CustomTask {
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Deep Analysis.
+
+class LlmDeepAnalysisTask @Inject constructor() : CustomTask {
   override val task: Task =
     Task(
-      id = BuiltInTaskId.LLM_PROMPT_LAB,
-      label = "Prompt Lab",
+      id = BuiltInTaskId.LLM_DEEP_ANALYSIS,
+      label = "Deep Analysis",
       category = Category.LLM,
-      icon = Icons.Outlined.Widgets,
+      icon = Icons.Outlined.AutoAwesome,
       models = mutableListOf(),
-      description = "Single turn use cases with on-device large language models",
-      docUrl = "https://github.com/google-ai-edge/LiteRT-LM/blob/main/kotlin/README.md",
-      sourceCodeUrl =
-        "https://github.com/google-ai-edge/gallery/blob/main/Android/src/app/src/main/java/com/google/ai/edge/gallery/ui/llmchat/LlmChatModelHelper.kt",
+      description =
+        "Analyze images and audio simultaneously with on-device large language models",
+      docUrl = "",
+      sourceCodeUrl = "",
       textInputPlaceHolderRes = R.string.text_input_placeholder_llm_chat,
     )
 
@@ -60,8 +62,8 @@ class LlmSingleTurnTask @Inject constructor() : CustomTask {
     LlmChatModelHelper.initialize(
       context = context,
       model = model,
-      supportImage = false,
-      supportAudio = false,
+      supportImage = true,
+      supportAudio = true,
       onDone = onDone,
     )
   }
@@ -78,7 +80,7 @@ class LlmSingleTurnTask @Inject constructor() : CustomTask {
   @Composable
   override fun MainScreen(data: Any) {
     val myData = data as CustomTaskDataForBuiltinTask
-    LlmSingleTurnScreen(
+    LlmDeepAnalysisScreen(
       modelManagerViewModel = myData.modelManagerViewModel,
       navigateUp = myData.onNavUp,
     )
@@ -87,10 +89,10 @@ class LlmSingleTurnTask @Inject constructor() : CustomTask {
 
 @Module
 @InstallIn(SingletonComponent::class) // Or another component that fits your scope
-internal object LlmSingleTurnTaskModule {
-//  @Provides
-//  @IntoSet
-//  fun provideTask(): CustomTask {
-//    return LlmSingleTurnTask()
-//  }
+internal object LlmDeepAnalysisModule {
+  @Provides
+  @IntoSet
+  fun provideTask(): CustomTask {
+    return LlmDeepAnalysisTask()
+  }
 }

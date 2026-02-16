@@ -95,6 +95,7 @@ private val IMPORT_CONFIGS_LLM: List<Config> =
   listOf(
     LabelConfig(key = ConfigKeys.NAME),
     LabelConfig(key = ConfigKeys.MODEL_TYPE),
+    LabelConfig(key = ConfigKeys.MODEL_SIZE),
     NumberSliderConfig(
       key = ConfigKeys.DEFAULT_MAX_TOKENS,
       sliderMin = 100f,
@@ -125,8 +126,7 @@ private val IMPORT_CONFIGS_LLM: List<Config> =
     ),
     BooleanSwitchConfig(key = ConfigKeys.SUPPORT_IMAGE, defaultValue = false),
     BooleanSwitchConfig(key = ConfigKeys.SUPPORT_AUDIO, defaultValue = false),
-    BooleanSwitchConfig(key = ConfigKeys.SUPPORT_TINY_GARDEN, defaultValue = false),
-    BooleanSwitchConfig(key = ConfigKeys.SUPPORT_MOBILE_ACTIONS, defaultValue = false),
+    BooleanSwitchConfig(key = ConfigKeys.SUPPORT_DEEP_ANALYSIS, defaultValue = false),
     SegmentedButtonConfig(
       key = ConfigKeys.COMPATIBLE_ACCELERATORS,
       defaultValue = Accelerator.CPU.label,
@@ -155,6 +155,7 @@ fun ModelImportDialog(
       put(ConfigKeys.NAME.label, fileName)
       // TODO: support other types.
       put(ConfigKeys.MODEL_TYPE.label, "LLM")
+      put(ConfigKeys.MODEL_SIZE.label, fileSize.humanReadableSize())
 
       for ((key, value) in defaultValues) {
         put(key.label, value)
@@ -251,15 +252,9 @@ fun ModelImportDialog(
                   valueType = ValueType.BOOLEAN,
                 )
                   as Boolean
-              val supportTinyGarden =
+              val supportDeepAnalysis =
                 convertValueToTargetType(
-                  value = values.get(ConfigKeys.SUPPORT_TINY_GARDEN.label)!!,
-                  valueType = ValueType.BOOLEAN,
-                )
-                  as Boolean
-              val supportMobileActions =
-                convertValueToTargetType(
-                  value = values.get(ConfigKeys.SUPPORT_MOBILE_ACTIONS.label)!!,
+                  value = values.get(ConfigKeys.SUPPORT_DEEP_ANALYSIS.label)!!,
                   valueType = ValueType.BOOLEAN,
                 )
                   as Boolean
@@ -276,8 +271,7 @@ fun ModelImportDialog(
                       .setDefaultTemperature(defaultTemperature)
                       .setSupportImage(supportImage)
                       .setSupportAudio(supportAudio)
-                      .setSupportMobileActions(supportMobileActions)
-                      .setSupportTinyGarden(supportTinyGarden)
+                      .setSupportDeepAnalysis(supportDeepAnalysis)
                       .build()
                   )
                   .build()

@@ -154,9 +154,8 @@ private val PREDEFINED_LLM_TASK_ORDER =
     BuiltInTaskId.LLM_ASK_IMAGE,
     BuiltInTaskId.LLM_ASK_AUDIO,
     BuiltInTaskId.LLM_CHAT,
-    BuiltInTaskId.LLM_PROMPT_LAB,
-    BuiltInTaskId.LLM_TINY_GARDEN,
-    BuiltInTaskId.LLM_MOBILE_ACTIONS,
+    BuiltInTaskId.LLM_DEEP_ANALYSIS,
+
     BuiltInTaskId.MP_SCRAPBOOK,
   )
 
@@ -178,7 +177,7 @@ fun HomeScreen(
   var showImportDialog by remember { mutableStateOf(false) }
   var showImportingDialog by remember { mutableStateOf(false) }
   var showTosDialog by remember { mutableStateOf(!tosViewModel.getIsTosAccepted()) }
-  var showMobileActionsChallengeDialog by remember { mutableStateOf(false) }
+
   val selectedLocalModelFileUri = remember { mutableStateOf<Uri?>(null) }
   val selectedImportedModelInfo = remember { mutableStateOf<ImportedModel?>(null) }
   val coroutineScope = rememberCoroutineScope()
@@ -387,11 +386,7 @@ fun HomeScreen(
                 tasksByCategories = uiState.tasksByCategory,
                 enableAnimation = enableAnimation,
                 navigateToTaskScreen = { task ->
-                  if (task.id == BuiltInTaskId.LLM_MOBILE_ACTIONS && task.models.isEmpty()) {
-                    showMobileActionsChallengeDialog = true
-                  } else {
-                    navigateToTaskScreen(task)
-                  }
+                  navigateToTaskScreen(task)
                 },
               )
 
@@ -427,32 +422,7 @@ fun HomeScreen(
     )
   }
 
-  if (showMobileActionsChallengeDialog) {
-    MobileActionsChallengeDialog(
-      onDismiss = { showMobileActionsChallengeDialog = false },
-      onLoadModel = {
-        // Show file picker.
-        val intent =
-          Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-            addCategory(Intent.CATEGORY_OPENABLE)
-            type = "*/*"
-            // Single select.
-            putExtra(Intent.EXTRA_ALLOW_MULTIPLE, false)
-          }
-        filePickerLauncher.launch(intent)
-      },
-      onSendEmail = {
-        context.startActivity(
-          Intent(Intent.ACTION_SEND).apply {
-            data = "mailto:".toUri()
-            type = "text/plain"
-            putExtra(Intent.EXTRA_SUBJECT, "Finetune FunctionGemma 270M for Mobile Actions")
-            putExtra(Intent.EXTRA_TEXT, "https://ai.google.dev/gemma/docs/mobile-actions")
-          }
-        )
-      },
-    )
-  }
+
 
   // Import model bottom sheet.
   if (showImportModelSheet) {
@@ -503,9 +473,6 @@ fun HomeScreen(
   if (showImportDialog) {
     selectedLocalModelFileUri.value?.let { uri ->
       // If it is from the Mobile Actions challenge flow.
-      val supportMobileActions = showMobileActionsChallengeDialog
-      showMobileActionsChallengeDialog = false
-
       ModelImportDialog(
         uri = uri,
         onDismiss = { showImportDialog = false },
@@ -516,9 +483,7 @@ fun HomeScreen(
         },
         defaultValues =
           mapOf(
-            ConfigKeys.SUPPORT_MOBILE_ACTIONS to supportMobileActions,
-            ConfigKeys.DEFAULT_TEMPERATURE to
-              (if (supportMobileActions) 0.0f else DEFAULT_TEMPERATURE),
+            ConfigKeys.DEFAULT_TEMPERATURE to DEFAULT_TEMPERATURE,
           ),
       )
     }
@@ -705,13 +670,8 @@ private fun IntroText(enableAnimation: Boolean) {
       )
 
   val introText = buildAnnotatedString {
-    append("${stringResource(R.string.app_intro)} ")
-    append(
-      buildTrackableUrlAnnotatedString(
-        url = url,
-        linkText = stringResource(R.string.litert_community_label),
-      )
-    )
+
+
   }
   Text(
     introText,

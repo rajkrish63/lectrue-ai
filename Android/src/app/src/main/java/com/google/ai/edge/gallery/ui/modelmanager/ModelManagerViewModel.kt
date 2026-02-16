@@ -74,7 +74,40 @@ private const val TEXT_INPUT_HISTORY_MAX_SIZE = 50
 private const val MODEL_ALLOWLIST_FILENAME = "model_allowlist.json"
 private const val MODEL_ALLOWLIST_TEST_FILENAME = "model_allowlist_test.json"
 
-private const val TEST_MODEL_ALLOW_LIST = ""
+private const val TEST_MODEL_ALLOW_LIST = """
+{
+  "models": [
+    {
+      "modelId": "google/gemma-2-2b-it-gpu-int4",
+      "modelFile": "model.tflite",
+      "name": "Gemma 2 2b (GPU)",
+      "description": "Gemma 2 2b IT GPU Int4",
+      "sizeInBytes": 1650000000,
+      "commitHash": "e1234567890abcdef",
+      "defaultConfig": {
+        "topK": 40,
+        "temperature": 0.8
+      },
+      "taskTypes": ["llm_chat", "llm_deep_analysis", "llm_ask_image", "llm_ask_audio"],
+      "isRecommended": true
+    },
+    {
+      "modelId": "google/gemma-2-2b-it-cpu-int4",
+      "modelFile": "model_cpu.tflite",
+      "name": "Gemma 2 2b (CPU)",
+      "description": "Gemma 2 2b IT CPU Int4",
+      "sizeInBytes": 1650000000,
+      "commitHash": "e1234567890abcdef",
+      "defaultConfig": {
+        "topK": 40,
+        "temperature": 0.8
+      },
+      "taskTypes": ["llm_chat"],
+      "isRecommended": false
+    }
+  ]
+}
+"""
 
 data class ModelInitializationStatus(
   val status: ModelInitializationStatusType,
@@ -155,9 +188,8 @@ private val PREDEFINED_LLM_TASK_ORDER =
     BuiltInTaskId.LLM_ASK_IMAGE,
     BuiltInTaskId.LLM_ASK_AUDIO,
     BuiltInTaskId.LLM_CHAT,
-    BuiltInTaskId.LLM_PROMPT_LAB,
-    BuiltInTaskId.LLM_TINY_GARDEN,
-    BuiltInTaskId.LLM_MOBILE_ACTIONS,
+    BuiltInTaskId.LLM_DEEP_ANALYSIS,
+
     BuiltInTaskId.MP_SCRAPBOOK,
   )
 
@@ -499,7 +531,7 @@ constructor(
             BuiltInTaskId.LLM_ASK_AUDIO,
             BuiltInTaskId.LLM_PROMPT_LAB,
             BuiltInTaskId.LLM_TINY_GARDEN,
-            BuiltInTaskId.LLM_MOBILE_ACTIONS,
+            BuiltInTaskId.LLM_DEEP_ANALYSIS,
           )
       )) {
       // Remove duplicated imported model if existed.
@@ -512,11 +544,11 @@ constructor(
         (task.id == BuiltInTaskId.LLM_ASK_IMAGE && model.llmSupportImage) ||
           (task.id == BuiltInTaskId.LLM_ASK_AUDIO && model.llmSupportAudio) ||
           (task.id == BuiltInTaskId.LLM_TINY_GARDEN && model.llmSupportTinyGarden) ||
-          (task.id == BuiltInTaskId.LLM_MOBILE_ACTIONS && model.llmSupportMobileActions) ||
+          (task.id == BuiltInTaskId.LLM_DEEP_ANALYSIS && model.llmSupportDeepAnalysis) ||
           (task.id != BuiltInTaskId.LLM_ASK_IMAGE &&
             task.id != BuiltInTaskId.LLM_ASK_AUDIO &&
             task.id != BuiltInTaskId.LLM_TINY_GARDEN &&
-            task.id != BuiltInTaskId.LLM_MOBILE_ACTIONS)
+            task.id != BuiltInTaskId.LLM_DEEP_ANALYSIS)
       ) {
         task.models.add(model)
         if (task.id == BuiltInTaskId.LLM_TINY_GARDEN) {
@@ -747,6 +779,7 @@ constructor(
         val gson = Gson()
         modelAllowlist = gson.fromJson(TEST_MODEL_ALLOW_LIST, ModelAllowlist::class.java)
 
+        /*
         if (modelAllowlist == null) {
           // Load from github.
           val url =
@@ -763,6 +796,7 @@ constructor(
             saveModelAllowlistToDisk(modelAllowlistContent = data?.textContent ?: "{}")
           }
         }
+        */
 
         if (modelAllowlist == null) {
           _uiState.update {
@@ -775,6 +809,12 @@ constructor(
 
         // Convert models in the allowlist.
         val curTasks = customTasks.map { it.task }
+        Log.e(TAG, "Available Custom Tasks: ${curTasks.map { it.id }}")
+        
+        if (curTasks.find { it.id == "llm_deep_analysis" } == null) {
+            throw RuntimeException("CRITICAL: llm_deep_analysis task NOT FOUND in customTasks!")
+        }
+
         val nameToModel = mutableMapOf<String, Model>()
         for (allowedModel in modelAllowlist.models) {
           if (allowedModel.disabled == true) {
@@ -785,7 +825,12 @@ constructor(
           nameToModel.put(model.name, model)
           for (taskType in allowedModel.taskTypes) {
             val task = curTasks.find { it.id == taskType }
-            task?.models?.add(model)
+            if (task == null) {
+                Log.w(TAG, "Could not find task for taskType: $taskType")
+            } else {
+                Log.d(TAG, "Adding model ${model.name} to task ${task.id}")
+                task.models.add(model)
+            }
 
             if (task?.id == BuiltInTaskId.LLM_TINY_GARDEN) {
               val newConfigs = model.configs.toMutableList()
@@ -947,6 +992,9 @@ constructor(
       if (model.llmSupportMobileActions) {
         tasks.get(key = BuiltInTaskId.LLM_MOBILE_ACTIONS)?.models?.add(model)
       }
+      if (model.llmSupportDeepAnalysis) {
+        tasks.get(key = BuiltInTaskId.LLM_DEEP_ANALYSIS)?.models?.add(model)
+      }
 
       // Update status.
       modelDownloadStatus[model.name] =
@@ -992,6 +1040,7 @@ constructor(
     val llmSupportAudio = info.llmConfig.supportAudio
     val llmSupportTinyGarden = info.llmConfig.supportTinyGarden
     val llmSupportMobileActions = info.llmConfig.supportMobileActions
+    val llmSupportDeepAnalysis = info.llmConfig.supportDeepAnalysis
     val model =
       Model(
         name = info.fileName,
@@ -1006,6 +1055,7 @@ constructor(
         llmSupportAudio = llmSupportAudio,
         llmSupportTinyGarden = llmSupportTinyGarden,
         llmSupportMobileActions = llmSupportMobileActions,
+        llmSupportDeepAnalysis = llmSupportDeepAnalysis,
       )
     model.preProcess()
 
